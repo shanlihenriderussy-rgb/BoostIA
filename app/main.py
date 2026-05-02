@@ -1,4 +1,4 @@
-"""Application FastAPI v6 — ajoute /api/models + override modele par requete."""
+"""Application FastAPI v7 — supports PyInstaller for .exe build."""
 
 from __future__ import annotations
 
@@ -257,6 +257,19 @@ async def generate(
 
 # --- Frontend statique (monte en dernier) -----------------------------------
 
-WEB_DIR = Path(__file__).parent.parent / "web"
+import sys
+
+def _get_web_dir() -> Path:
+    """Get web directory - works in dev and frozen (.exe) mode."""
+    if getattr(sys, "frozen", False):
+        # Running as .exe (PyInstaller)
+        base = Path(sys._MEIPASS)
+    else:
+        # Running in dev mode
+        base = Path(__file__).parent.parent
+    return base / "web"
+
+
+WEB_DIR = _get_web_dir()
 if WEB_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")
