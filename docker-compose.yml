@@ -1,0 +1,35 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: boostia-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    # Pour activer le GPU NVIDIA (nécessite nvidia-container-toolkit installé) :
+    # décommentez le bloc suivant.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  api:
+    build: .
+    container_name: boostia-api
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      MODEL_NAME: qwen2.5:3b-instruct
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: "[]"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

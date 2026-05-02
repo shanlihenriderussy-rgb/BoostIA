@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoostIA — Rédaction assistée</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked@13.0.3/marked.min.js" defer></script>
+</head>
+<body>
+  <div class="bg-gradient" aria-hidden="true"></div>
+
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13 2L4.09 12.97L11 13L11 22L20 11L13 11L13 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1>BoostIA</h1>
+        <p class="tagline">Rédaction assistée — 100&nbsp;% local, 100&nbsp;% privé</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <select id="model-picker" class="model-info" aria-label="Choix du modèle d'IA" title="Choix du modèle d'IA">
+        <option value="">…</option>
+      </select>
+      <button id="theme-toggle" class="icon-button" type="button" aria-label="Basculer thème clair/sombre" title="Basculer thème">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+        </svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card controls" aria-labelledby="controls-title">
+      <h2 id="controls-title" class="visually-hidden">Paramètres</h2>
+
+      <div class="field">
+        <label for="template">Type de texte</label>
+        <select id="template" required></select>
+        <p id="template-desc" class="hint"></p>
+      </div>
+
+      <div class="field">
+        <label>Tonalité</label>
+        <div class="tone-group" role="radiogroup" id="tone-group" aria-label="Tonalité">
+          <button type="button" class="tone-chip" data-value="formel" role="radio" aria-checked="false">Formel</button>
+          <button type="button" class="tone-chip active" data-value="neutre" role="radio" aria-checked="true">Neutre</button>
+          <button type="button" class="tone-chip" data-value="direct" role="radio" aria-checked="false">Direct</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="context">Contexte / éléments à inclure</label>
+        <textarea id="context" rows="10"
+          placeholder="Décrivez le contexte : interlocuteur, sujet, dates, points clés à intégrer…"></textarea>
+        <p class="hint shortcut-hint"><kbd>Ctrl</kbd>&nbsp;+&nbsp;<kbd>Entrée</kbd> pour générer</p>
+      </div>
+
+      <button id="go" type="button" class="primary-button">
+        <span class="btn-label">Générer</span>
+        <span class="btn-loader" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+      </button>
+    </section>
+
+    <section class="card output" aria-labelledby="output-title">
+      <div class="output-header">
+        <h2 id="output-title">Résultat</h2>
+        <div class="actions">
+          <button id="copy" type="button" class="ghost-button" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="9" width="13" height="13" rx="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Copier
+          </button>
+          <button id="clear" type="button" class="ghost-button" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/>
+            </svg>
+            Effacer
+          </button>
+        </div>
+      </div>
+      <div id="result" class="result empty" aria-live="polite">
+        <div class="placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <p>Le texte généré apparaîtra ici.</p>
+        </div>
+      </div>
+      <div id="status" class="status" role="status"></div>
+    </section>
+  </main>
+
+  <footer>
+    Aucune donnée ne quitte cette machine.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
