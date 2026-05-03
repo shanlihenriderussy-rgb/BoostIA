@@ -611,6 +611,63 @@
     }
   });
 
+  // ---------- Hero : smooth scroll vers l'atelier ----------
+  const heroCta = $("hero-cta");
+  const atelier = $("atelier");
+  if (heroCta && atelier) {
+    heroCta.addEventListener("click", () => {
+      atelier.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  // ---------- Parallax & reveal au scroll ----------
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (!prefersReducedMotion) {
+    const heroInner = document.querySelector(".hero-inner");
+    const heroHint = document.querySelector(".hero-scroll-hint");
+
+    if (heroInner) {
+      let ticking = false;
+      const updateParallax = () => {
+        const y = window.scrollY;
+        const heroHeight = window.innerHeight;
+        // Le contenu hero remonte (translate -y/3) et fade jusqu'a 70 % de sa hauteur
+        const progress = Math.min(y / (heroHeight * 0.7), 1);
+        heroInner.style.transform = `translateY(${-y / 3}px)`;
+        heroInner.style.opacity = String(1 - progress);
+        if (heroHint) heroHint.style.opacity = String(Math.max(0.5 - y / 200, 0));
+        ticking = false;
+      };
+      window.addEventListener("scroll", () => {
+        if (!ticking) {
+          requestAnimationFrame(updateParallax);
+          ticking = true;
+        }
+      }, { passive: true });
+    }
+
+    // Reveal au scroll (cards de l'atelier)
+    const revealEls = document.querySelectorAll(".reveal-on-scroll");
+    if (revealEls.length && "IntersectionObserver" in window) {
+      const obs = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            obs.unobserve(entry.target);
+          }
+        }
+      }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+      revealEls.forEach((el) => obs.observe(el));
+    } else {
+      // Fallback : tout visible direct
+      revealEls.forEach((el) => el.classList.add("is-visible"));
+    }
+  } else {
+    // Reduced motion : tout immediatement visible, pas de parallax
+    document.querySelectorAll(".reveal-on-scroll").forEach((el) => el.classList.add("is-visible"));
+  }
+
   initTheme();
   loadTemplates();
   loadModels();

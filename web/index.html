@@ -42,8 +42,34 @@
     </div>
   </header>
 
-  <main>
-    <section class="card controls" aria-labelledby="controls-title">
+  <section class="hero" aria-labelledby="hero-headline">
+    <div class="hero-inner">
+      <p class="hero-eyebrow">BoostIA</p>
+      <h2 id="hero-headline" class="hero-headline">Privé par nature.</h2>
+      <p class="hero-sub">L'IA de rédaction qui ne quitte jamais votre machine. Vos mots restent les vôtres.</p>
+      <button type="button" class="hero-cta" id="hero-cta" aria-label="Aller à l'atelier de rédaction">
+        Commencer
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+    </div>
+    <div class="hero-scroll-hint" aria-hidden="true">
+      <span>Scroll</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </div>
+  </section>
+
+  <div class="atelier-header">
+    <p class="atelier-eyebrow">L'atelier</p>
+    <h2 class="atelier-title">Votre rédaction, à la demande.</h2>
+    <p class="atelier-sub">Choisissez un type de texte, donnez le contexte, BoostIA s'occupe du reste.</p>
+  </div>
+
+  <main id="atelier">
+    <section class="card controls reveal-on-scroll" aria-labelledby="controls-title">
       <h2 id="controls-title" class="visually-hidden">Paramètres</h2>
 
       <div class="field">
@@ -76,7 +102,7 @@
       </button>
     </section>
 
-    <section class="card output" aria-labelledby="output-title">
+    <section class="card output reveal-on-scroll" aria-labelledby="output-title">
       <div class="output-header">
         <h2 id="output-title">Résultat</h2>
       </div>
