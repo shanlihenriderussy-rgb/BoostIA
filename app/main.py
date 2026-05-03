@@ -1,9 +1,10 @@
-"""Application FastAPI v7 — supports PyInstaller for .exe build."""
+"""Application FastAPI v8 — fixe le system prompt cassé de /api/refine + sauvegarde history."""
 
 from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import time
 import uuid
 from collections import defaultdict, deque
@@ -32,7 +33,7 @@ logger = structlog.get_logger(__name__)
 app = FastAPI(
     title="BoostIA",
     description="Assistant de redaction professionnelle 100 % local.",
-    version="0.4.0",
+    version="0.5.0",
 )
 
 if settings.cors_origins:
@@ -97,11 +98,13 @@ class GenerateRequest(BaseModel):
     template_id: str = Field(...)
     context: str = Field(..., min_length=1, max_length=8000)
     tone: Tone = Field(default="neutre")
-    model: str | None = Field(
-        default=None,
-        description="Nom du modele Ollama a utiliser (override le default). "
-        "Doit etre dans la liste AVAILABLE_MODELS.",
-    )
+    model: str | None = Field(default=None)
+
+
+class RefineRequest(BaseModel):
+    output: str = Field(..., min_length=1, max_length=20000)
+    instruction: str = Field(..., description="plus_court | plus_formel | plus_neutre | plus_direct")
+    model: str | None = Field(default=None)
 
 
 # --- Routes API --------------------------------------------------------------
@@ -125,11 +128,25 @@ async def templates_endpoint() -> list[dict[str, str]]:
 
 @app.get("/api/models")
 async def models_endpoint() -> dict:
-    """Liste les modeles selectionnables + indique le defaut."""
-    return {
-        "default": settings.model_name,
-        "available": AVAILABLE_MODELS,
-    }
+    return {"default": settings.model_name, "available": AVAILABLE_MODELS}
+
+
+@app.get("/api/history")
+async def history_endpoint(limit: int = 20) -> list[dict]:
+    """Recupere les dernieres generations sauvegardees."""
+    entries = history_db.get_all(limit=limit)
+    return [
+        {
+            "id": e.id,
+            "created_at": e.created_at,
+            "template_id": e.template_id,
+            "template_label": e.template_label,
+            "tone": e.tone,
+            "context": e.context[:200] + "..." if len(e.context) > 200 else e.context,
+            "output_chars": e.output_chars,
+        }
+        for e in entries
+    ]
 
 
 def _sse(payload: dict, event: str | None = None) -> bytes:
@@ -144,37 +161,21 @@ async def generate(
     request: Request,
     _: None = Depends(_verify_api_key),
 ) -> StreamingResponse:
-    """Genere un texte en streaming SSE.
-
-    Le champ optionnel `model` permet d'override le modele par defaut pour
-    cette requete. Doit etre dans `AVAILABLE_MODELS`.
-    """
     client_ip = _get_client_ip(request)
 
     if not _check_rate_limit(client_ip):
-        raise HTTPException(
-            status_code=429,
-            detail=f"Trop de requetes (max {settings.rate_limit_per_minute}/min). Reessayez plus tard.",
-        )
+        raise HTTPException(status_code=429, detail=f"Trop de requetes (max {settings.rate_limit_per_minute}/min).")
 
-    # Validation du modele (whitelist)
     chosen_model: str | None = None
     if req.model:
         if req.model not in _allowed_model_ids():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Modele non autorise : {req.model!r}. "
-                f"Choix possibles : {sorted(_allowed_model_ids())}",
-            )
+            raise HTTPException(status_code=400, detail=f"Modele non autorise : {req.model!r}")
         chosen_model = req.model
 
     request_id = uuid.uuid4().hex[:12]
     log = logger.bind(
-        request_id=request_id,
-        client_ip=client_ip,
-        template_id=req.template_id,
-        tone=req.tone,
-        context_len=len(req.context),
+        request_id=request_id, client_ip=client_ip, template_id=req.template_id,
+        tone=req.tone, context_len=len(req.context),
         model=chosen_model or settings.model_name,
     )
 
@@ -195,10 +196,7 @@ async def generate(
             await asyncio.wait_for(_generation_semaphore.acquire(), timeout=2.0)
         except asyncio.TimeoutError:
             log.warning("generation_busy")
-            yield _sse(
-                {"error": "Le modele est deja en train de generer. Reessayez dans quelques secondes."},
-                event="error",
-            )
+            yield _sse({"error": "Le modele est deja en train de generer."}, event="error")
             return
 
         total_chars = 0
@@ -222,18 +220,13 @@ async def generate(
         elapsed = round(time.perf_counter() - started, 2)
         output_text = "".join(output_parts)
 
-        # Sauvegarde dans l'historique (SQLite)
         try:
             from app.templates import get_template
             template = get_template(req.template_id)
             history_db.add_entry(
-                template_id=req.template_id,
-                template_label=template.label,
-                tone=req.tone,
-                context=req.context,
-                output=output_text,
-                output_chars=total_chars,
-                elapsed_seconds=elapsed,
+                template_id=req.template_id, template_label=template.label, tone=req.tone,
+                context=req.context, output=output_text,
+                output_chars=total_chars, elapsed_seconds=elapsed,
             )
         except Exception as exc:
             log.warning("history_save_failed", error=str(exc))
@@ -245,27 +238,104 @@ async def generate(
         )
 
     return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "X-Content-Type-Options": "nosniff",
-        },
+        event_stream(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-Content-Type-Options": "nosniff"},
     )
 
 
-# --- Frontend statique (monte en dernier) -----------------------------------
+# Instructions de reformulation pour /api/refine (en clair, en francais)
+_REFINE_INSTRUCTIONS = {
+    "plus_court": "Raccourcis ce texte d'environ 30 % en gardant tous les faits importants. Coupe les redondances et les phrases de politesse trop longues. Garde le meme ton.",
+    "plus_formel": "Reformule ce texte dans un registre plus formel : vouvoiement systematique, vocabulaire soutenu, formules de politesse completes. Garde tout le sens.",
+    "plus_neutre": "Reformule ce texte dans un registre neutre et courtois : ni trop formel, ni trop familier. Garde tout le sens.",
+    "plus_direct": "Reformule ce texte plus direct et factuel : phrases courtes, va droit au but, sans fioritures. Garde tout le sens.",
+}
 
-import sys
+
+@app.post("/api/refine")
+async def refine(
+    req: RefineRequest,
+    request: Request,
+    _: None = Depends(_verify_api_key),
+) -> StreamingResponse:
+    """Reformule un texte deja genere selon une instruction (plus_court, plus_formel, etc.)."""
+    client_ip = _get_client_ip(request)
+
+    if not _check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail=f"Trop de requetes (max {settings.rate_limit_per_minute}/min).")
+
+    chosen_model: str | None = None
+    if req.model:
+        if req.model not in _allowed_model_ids():
+            raise HTTPException(status_code=400, detail=f"Modele non autorise : {req.model!r}")
+        chosen_model = req.model
+
+    consigne = _REFINE_INSTRUCTIONS.get(req.instruction, req.instruction)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Tu es BoostIA, un assistant de reformulation. Tu modifies le texte "
+                "fourni selon l'instruction donnee. Tu produis UNIQUEMENT le texte "
+                "modifie, sans preambule, sans explication, sans guillemets autour. "
+                "Tu n'ajoutes JAMAIS d'information absente du texte source."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"INSTRUCTION : {consigne}\n\nTEXTE A MODIFIER :\n---\n{req.output}\n---",
+        },
+    ]
+
+    request_id = uuid.uuid4().hex[:12]
+    log = logger.bind(
+        request_id=request_id, client_ip=client_ip,
+        instruction=req.instruction, source_chars=len(req.output),
+        model=chosen_model or settings.model_name,
+    )
+    log.info("refine_start")
+    started = time.perf_counter()
+
+    async def event_stream() -> AsyncIterator[bytes]:
+        try:
+            await asyncio.wait_for(_generation_semaphore.acquire(), timeout=2.0)
+        except asyncio.TimeoutError:
+            log.warning("refine_busy")
+            yield _sse({"error": "Le modele est occupe."}, event="error")
+            return
+
+        total_chars = 0
+        try:
+            async for delta in llm.chat_stream(messages, model=chosen_model):
+                total_chars += len(delta)
+                yield _sse({"delta": delta})
+        except OllamaError as exc:
+            log.error("ollama_error", error=str(exc))
+            yield _sse({"error": str(exc)}, event="error")
+            return
+        except Exception as exc:  # noqa: BLE001
+            log.exception("refine_error")
+            yield _sse({"error": f"Erreur : {exc}"}, event="error")
+            return
+        finally:
+            _generation_semaphore.release()
+
+        elapsed = round(time.perf_counter() - started, 2)
+        log.info("refine_end", output_chars=total_chars, elapsed_seconds=elapsed)
+        yield _sse({"output_chars": total_chars, "elapsed_seconds": elapsed}, event="done")
+
+    return StreamingResponse(
+        event_stream(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+# --- Frontend statique (compat dev + .exe PyInstaller) -----------------------
 
 def _get_web_dir() -> Path:
-    """Get web directory - works in dev and frozen (.exe) mode."""
     if getattr(sys, "frozen", False):
-        # Running as .exe (PyInstaller)
-        base = Path(sys._MEIPASS)
+        base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
     else:
-        # Running in dev mode
         base = Path(__file__).parent.parent
     return base / "web"
 

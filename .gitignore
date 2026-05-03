@@ -14,6 +14,17 @@ env/
 # Configuration locale
 .env
 
+# Base SQLite locale (historique des générations, données utilisateur)
+*.db
+boostia_history.db
+
+# Fichiers de test/exemples personnels
+Exemple.txt
+
+# Documents internes (passation, infos privées)
+HANDOFF.md
+GITHUB_DESCRIPTION.txt
+
 # Logs / fichiers générés
 *.log
 logs/
