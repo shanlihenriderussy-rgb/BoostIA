@@ -626,17 +626,32 @@
   if (!prefersReducedMotion) {
     const heroInner = document.querySelector(".hero-inner");
     const heroHint = document.querySelector(".hero-scroll-hint");
+    const orbStage = document.querySelector(".orb-stage");
 
-    if (heroInner) {
+    if (heroInner || orbStage) {
       let ticking = false;
       const updateParallax = () => {
         const y = window.scrollY;
         const heroHeight = window.innerHeight;
-        // Le contenu hero remonte (translate -y/3) et fade jusqu'a 70 % de sa hauteur
         const progress = Math.min(y / (heroHeight * 0.7), 1);
-        heroInner.style.transform = `translateY(${-y / 3}px)`;
-        heroInner.style.opacity = String(1 - progress);
-        if (heroHint) heroHint.style.opacity = String(Math.max(0.5 - y / 200, 0));
+
+        if (heroInner) {
+          // Hero text remonte 3x plus lent que le scroll, fade jusqu'a 70% viewport
+          heroInner.style.transform = `translateY(${-y / 3}px)`;
+          heroInner.style.opacity = String(1 - progress);
+        }
+        if (heroHint) {
+          heroHint.style.opacity = String(Math.max(0.5 - y / 200, 0));
+        }
+        if (orbStage) {
+          // Orb scrolle plus vite (1.5x), retrecit, fade — passe derriere l'atelier (z-index 0 vs card z-index)
+          const orbProgress = Math.min(y / heroHeight, 1);
+          const offset = y * 0.6;
+          const scale = 1 - orbProgress * 0.55;
+          const opacity = Math.max(1 - orbProgress * 1.2, 0);
+          orbStage.style.transform = `translateY(${offset}px) scale(${scale})`;
+          orbStage.style.opacity = String(opacity);
+        }
         ticking = false;
       };
       window.addEventListener("scroll", () => {
