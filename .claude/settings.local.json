@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "boostia": {
+      "command": "python",
+      "args": ["run_mcp.py"],
+      "description": "BoostIA - Assistant de rédaction professionnelle 100% local"
+    }
+  }
+}
