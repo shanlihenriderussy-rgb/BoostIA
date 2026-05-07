@@ -1,31 +1,76 @@
 @echo off
-echo ========================================
-echo  BoostIA - Construction .EXE
-echo ========================================
-echo.
-echo Ce script cree un fichier .exe autonome
-echo containing l'application complete.
-echo.
-echo Appuyez sur une touche pour continuer...
-pause >nul
+setlocal
+chcp 65001 >nul
 
-REM Activate venv
+echo ========================================
+echo  BoostIA - Construction du .EXE autonome
+echo ========================================
+echo.
+
+REM Verifier Python
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo [ERREUR] Python non trouve. Installez Python 3.11+ depuis https://python.org
+    pause
+    exit /b 1
+)
+
+REM Creer venv si absent
+if not exist ".venv" (
+    echo [1/5] Creation de l'environnement virtuel...
+    python -m venv .venv
+    if errorlevel 1 (
+        echo [ERREUR] Echec creation venv
+        pause
+        exit /b 1
+    )
+) else (
+    echo [1/5] Environnement virtuel existant detecte
+)
+
+REM Activer venv
 call .venv\Scripts\activate.bat
 
-REM Install PyInstaller
+REM Installer toutes les dependances + PyInstaller
 echo.
-echo [1/3] Installation de PyInstaller...
-pip install pyinstaller
+echo [2/5] Installation/MAJ des dependances (peut prendre quelques minutes)...
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install pyinstaller>=6.0
+if errorlevel 1 (
+    echo [ERREUR] Echec installation dependances
+    pause
+    exit /b 1
+)
 
-REM Build .exe
+REM Nettoyer build precedent
 echo.
-echo [2/3] Construction du .exe (Cela peut prendre quelques minutes)...
-pyinstaller --onefile --name BoostIA --add-data "web;web" --add-data "app;templates" app/main.py
+echo [3/5] Nettoyage des builds precedents...
+if exist "build" rmdir /s /q "build"
+if exist "dist" rmdir /s /q "dist"
 
-REM Note: We need to modify main.py to serve web files from the bundle
+REM Build via le .spec
 echo.
-echo [3/3] Termine !
+echo [4/5] Construction du .exe (cela peut prendre 3-5 minutes)...
+pyinstaller --clean --noconfirm boostia.spec
+if errorlevel 1 (
+    echo [ERREUR] Echec PyInstaller
+    pause
+    exit /b 1
+)
+
 echo.
-echo Le fichier .exe se trouve dans le dossier dist\BoostIA.exe
+echo [5/5] Termine.
+echo.
+echo ========================================
+echo  BoostIA.exe genere dans : dist\BoostIA.exe
+echo ========================================
+echo.
+echo IMPORTANT : Ollama doit etre installe et en cours d'execution
+echo             pour que BoostIA fonctionne. Telechargez-le sur :
+echo             https://ollama.com
+echo.
+echo Au premier lancement, BoostIA tirera le modele par defaut
+echo via Ollama (peut prendre quelques minutes selon la connexion).
 echo.
 pause

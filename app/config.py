@@ -1,4 +1,4 @@
-"""Configuration centralisee — v7 : restaure qwen3:8b dans les modeles disponibles."""
+"""Configuration centralisee — v9 : qwen2.5:7b par defaut (sweet spot qualite/vitesse)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
-    model_name: str = "qwen2.5:3b-instruct"
+    model_name: str = "qwen2.5:7b-instruct"
 
     # Generation
     request_timeout_seconds: int = 120
@@ -39,18 +39,18 @@ settings = Settings()
 # Pour ajouter un modele : `ollama pull <id>` puis l'ajouter ici.
 AVAILABLE_MODELS: list[dict[str, str]] = [
     {
-        "id": "qwen2.5:3b-instruct",
-        "label": "Qwen 2.5 — 3B Instruct",
-        "description": "Tres rapide (~50 tokens/s), qualite acceptable",
+        "id": "qwen2.5:7b-instruct",
+        "label": "Qwen 2.5 — 7B Instruct",
+        "description": "Recommande — bon equilibre qualite/vitesse (~15-25s par e-mail)",
     },
     {
-        "id": "deepseek-r1:8b",
-        "label": "DeepSeek R1 — 8B",
-        "description": "Reasoning model — raisonnement profond, qualite superieure",
+        "id": "qwen2.5:3b-instruct",
+        "label": "Qwen 2.5 — 3B Instruct",
+        "description": "Tres rapide (~5s) mais qualite FR limitee",
     },
     {
         "id": "phi4:latest",
         "label": "Phi 4 — Latest",
-        "description": "Modele puissant et equilibre (9.1 GB)",
+        "description": "Meilleure qualite mais lent sur petite VRAM (~50-60s)",
     },
 ]

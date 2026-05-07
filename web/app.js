@@ -9,6 +9,8 @@
   const goBtn = $("go");
   const copyBtn = $("copy");
   const clearBtn = $("clear");
+  const exportPdfBtn = $("export-pdf");
+  const exportMdBtn = $("export-md");
   const resultEl = $("result");
   const statusEl = $("status");
   const modelPicker = $("model-picker");
@@ -18,7 +20,7 @@
 
   const API_BASE = "";
   const THEME_KEY = "boostia.theme";
-  const MODEL_KEY = "boostia.model";
+  const MODEL_KEY = "boostia.model.v2";
   const MARKDOWN_TEMPLATES = new Set(["compte_rendu"]);
 
   let abortController = null;
@@ -30,20 +32,19 @@
 
   // Messages de progression contextués par modèle
   const PROGRESS_MESSAGES = {
+    "qwen2.5:7b-instruct": [
+      "🧠 Qwen 7B démarre…",
+      "📝 Analyse du contexte…",
+      "✨ Rédaction…",
+      "🔍 Révision…",
+      "🎯 Finalisation…",
+    ],
     "qwen2.5:3b-instruct": [
       "⚡ Qwen accélère…",
       "📝 Structuration…",
       "✨ Affinage…",
       "🎯 Finalisation…",
       "💫 Prêt !",
-    ],
-    "deepseek-r1:8b": [
-      "🧠 DeepSeek réfléchit…",
-      "🔗 Raisonnement en cours…",
-      "💭 Analyse profonde…",
-      "📚 Synthèse…",
-      "✨ Finalisation…",
-      "🎯 Polissage…",
     ],
     "phi4:latest": [
       "🧠 Phi 4 démarre…",
@@ -64,9 +65,9 @@
 
   // Intervalles de progression par modèle (en ms) — BIEN PLUS LONG
   const PROGRESS_INTERVALS = {
-    "qwen2.5:3b-instruct": 2200,  // Rapide mais lisible
-    "deepseek-r1:8b": 3200,        // Modéré
-    "phi4:latest": 3600,           // Lent et généreux
+    "qwen2.5:3b-instruct": 2200,
+    "qwen2.5:7b-instruct": 3000,
+    "phi4:latest": 3600,
     default: 2800,
   };
 
@@ -312,6 +313,8 @@
     showLoadingScreen(modelLabel);
     copyBtn.disabled = true;
     clearBtn.disabled = true;
+    exportPdfBtn.disabled = true;
+    exportMdBtn.disabled = true;
     setStatus("Connexion au modèle…");
     setBusy(true);
 
@@ -353,6 +356,8 @@
         renderResult(rawText, { streaming: false });
         copyBtn.disabled = false;
         clearBtn.disabled = false;
+        exportPdfBtn.disabled = false;
+        exportMdBtn.disabled = false;
         const elapsed = ((performance.now() - started) / 1000).toFixed(1);
         const ttft = firstTokenAt ? ((firstTokenAt - started) / 1000).toFixed(2) : "?";
         setStatus(`${charCount} car. en ${elapsed}s — premier token : ${ttft}s`, "success");
@@ -457,9 +462,146 @@
     showPlaceholder();
     copyBtn.disabled = true;
     clearBtn.disabled = true;
+    exportPdfBtn.disabled = true;
+    exportMdBtn.disabled = true;
     refineShortBtn.disabled = true;
     refineFormalBtn.disabled = true;
     setStatus("");
+  });
+
+  const buildFilename = (ext) => {
+    const id = templateSelect.value || "boostia";
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    return `boostia-${id}-${stamp}.${ext}`;
+  };
+
+  exportMdBtn.addEventListener("click", () => {
+    if (!rawText) return;
+    const blob = new Blob([rawText], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = buildFilename("md");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus("Markdown exporté.", "success");
+  });
+
+  const buildPdfWrapper = (text, templateId, templateLabel) => {
+    const isMd = MARKDOWN_TEMPLATES.has(templateId) && window.marked;
+    const bodyHtml = isMd
+      ? window.marked.parse(text)
+      : `<pre style="white-space:pre-wrap;font-family:inherit;margin:0;font-size:11pt;line-height:1.65;color:#0a1f12;">${text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c])}</pre>`;
+
+    const today = new Date().toLocaleDateString("fr-FR", {
+      day: "numeric", month: "long", year: "numeric",
+    });
+
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "width:794px;background:#f1f8f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0a1f12;padding:0;margin:0;";
+
+    wrapper.innerHTML = `
+      <div style="padding:32px 36px 24px 36px;background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);color:#ecfdf5;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <div>
+            <div style="font-size:11pt;letter-spacing:2px;text-transform:uppercase;opacity:0.85;font-weight:500;">BoostIA</div>
+            <div style="font-size:22pt;font-weight:700;margin-top:4px;letter-spacing:-0.5px;">${templateLabel}</div>
+          </div>
+          <div style="text-align:right;font-size:9.5pt;opacity:0.9;line-height:1.5;">
+            <div style="font-weight:600;">${today}</div>
+            <div style="opacity:0.75;margin-top:2px;">Genere localement</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:32px 36px 28px 36px;">
+        <div style="background:#ffffff;border:1px solid rgba(22,163,74,0.16);border-radius:14px;box-shadow:0 4px 16px rgba(6,95,70,0.08);padding:32px 36px;position:relative;">
+          <div style="position:absolute;top:0;left:24px;right:24px;height:3px;background:linear-gradient(90deg,#4ade80,#16a34a,#84cc16);border-radius:0 0 4px 4px;"></div>
+          <div class="boostia-pdf-content" style="font-size:11.5pt;line-height:1.7;color:#0a1f12;">
+            ${bodyHtml}
+          </div>
+        </div>
+
+        <div style="margin-top:20px;padding:14px 20px;background:rgba(22,163,74,0.06);border-left:3px solid #16a34a;border-radius:6px;font-size:9pt;color:#4d6b58;line-height:1.5;">
+          <strong style="color:#15803d;">Confidentialite :</strong> document genere localement par BoostIA.
+          Aucune donnee n'a transite par un serveur externe.
+        </div>
+      </div>
+
+      <div style="padding:16px 36px 24px 36px;text-align:center;font-size:8.5pt;color:#88a596;border-top:1px solid rgba(22,163,74,0.10);margin-top:8px;">
+        BoostIA — Assistant de redaction professionnelle 100% local
+      </div>
+    `;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      .boostia-pdf-content h1 { font-size:18pt;color:#15803d;margin:0 0 16px 0;font-weight:700;letter-spacing:-0.3px;border-bottom:2px solid rgba(22,163,74,0.20);padding-bottom:8px; }
+      .boostia-pdf-content h2 { font-size:13pt;color:#16a34a;margin:22px 0 10px 0;font-weight:600;text-transform:uppercase;letter-spacing:0.5px; }
+      .boostia-pdf-content h3 { font-size:11.5pt;color:#15803d;margin:18px 0 8px 0;font-weight:600; }
+      .boostia-pdf-content p { margin:0 0 12px 0; }
+      .boostia-pdf-content ul, .boostia-pdf-content ol { margin:0 0 14px 0;padding-left:22px; }
+      .boostia-pdf-content li { margin:4px 0; }
+      .boostia-pdf-content strong { color:#15803d;font-weight:600; }
+      .boostia-pdf-content em { color:#4d6b58; }
+      .boostia-pdf-content code { background:rgba(22,163,74,0.08);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10pt;color:#15803d; }
+      .boostia-pdf-content blockquote { border-left:3px solid #4ade80;margin:0 0 14px 0;padding:4px 16px;color:#4d6b58;font-style:italic;background:rgba(74,222,128,0.06);border-radius:0 6px 6px 0; }
+    `;
+    wrapper.appendChild(style);
+    return wrapper;
+  };
+
+  exportPdfBtn.addEventListener("click", async () => {
+    if (!rawText) return;
+    if (!window.html2pdf) {
+      setStatus("html2pdf indisponible (vérifiez votre connexion CDN).", "error");
+      return;
+    }
+    const id = templateSelect.value;
+    const tpl = templatesById[id];
+    const label = tpl ? tpl.label : "Document";
+
+    const wrapper = buildPdfWrapper(rawText, id, label);
+    // html2canvas a besoin d'un element rendu avec opacite normale.
+    // Astuce : transform translate pour le sortir visuellement de l'ecran
+    // sans toucher a l'opacite ni a la visibilite (qui casseraient le rendu).
+    wrapper.style.position = "absolute";
+    wrapper.style.top = "0";
+    wrapper.style.left = "0";
+    wrapper.style.transform = "translateX(-120%)";
+    wrapper.style.zIndex = "-1";
+    wrapper.style.pointerEvents = "none";
+    document.body.appendChild(wrapper);
+
+    setStatus("Génération du PDF…");
+    // Laisser un tick au navigateur pour appliquer les styles
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    try {
+      await window.html2pdf()
+        .set({
+          margin: 0,
+          filename: buildFilename("pdf"),
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#f1f8f3",
+            windowWidth: 794,
+            scrollY: 0,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] },
+        })
+        .from(wrapper)
+        .save();
+      setStatus("PDF exporté.", "success");
+    } catch (e) {
+      setStatus("Erreur PDF : " + e.message, "error");
+    } finally {
+      if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+    }
   });
 
   contextEl.addEventListener("keydown", (e) => {
@@ -468,6 +610,78 @@
       generate();
     }
   });
+
+  // ---------- Hero : smooth scroll vers l'atelier ----------
+  const heroCta = $("hero-cta");
+  const atelier = $("atelier");
+  if (heroCta && atelier) {
+    heroCta.addEventListener("click", () => {
+      atelier.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  // ---------- Parallax & reveal au scroll ----------
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (!prefersReducedMotion) {
+    const heroInner = document.querySelector(".hero-inner");
+    const heroHint = document.querySelector(".hero-scroll-hint");
+    const orbStage = document.querySelector(".orb-stage");
+
+    if (heroInner || orbStage) {
+      let ticking = false;
+      const updateParallax = () => {
+        const y = window.scrollY;
+        const heroHeight = window.innerHeight;
+        const progress = Math.min(y / (heroHeight * 0.7), 1);
+
+        if (heroInner) {
+          // Hero text remonte 3x plus lent que le scroll, fade jusqu'a 70% viewport
+          heroInner.style.transform = `translateY(${-y / 3}px)`;
+          heroInner.style.opacity = String(1 - progress);
+        }
+        if (heroHint) {
+          heroHint.style.opacity = String(Math.max(0.5 - y / 200, 0));
+        }
+        if (orbStage) {
+          // Orb scrolle plus vite (1.5x), retrecit, fade — passe derriere l'atelier (z-index 0 vs card z-index)
+          const orbProgress = Math.min(y / heroHeight, 1);
+          const offset = y * 0.6;
+          const scale = 1 - orbProgress * 0.55;
+          const opacity = Math.max(1 - orbProgress * 1.2, 0);
+          orbStage.style.transform = `translateY(${offset}px) scale(${scale})`;
+          orbStage.style.opacity = String(opacity);
+        }
+        ticking = false;
+      };
+      window.addEventListener("scroll", () => {
+        if (!ticking) {
+          requestAnimationFrame(updateParallax);
+          ticking = true;
+        }
+      }, { passive: true });
+    }
+
+    // Reveal au scroll (cards de l'atelier)
+    const revealEls = document.querySelectorAll(".reveal-on-scroll");
+    if (revealEls.length && "IntersectionObserver" in window) {
+      const obs = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            obs.unobserve(entry.target);
+          }
+        }
+      }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+      revealEls.forEach((el) => obs.observe(el));
+    } else {
+      // Fallback : tout visible direct
+      revealEls.forEach((el) => el.classList.add("is-visible"));
+    }
+  } else {
+    // Reduced motion : tout immediatement visible, pas de parallax
+    document.querySelectorAll(".reveal-on-scroll").forEach((el) => el.classList.add("is-visible"));
+  }
 
   initTheme();
   loadTemplates();

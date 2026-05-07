@@ -1,4 +1,4 @@
-"""Templates de redaction — v8 : restaure _BASE_SYSTEM mature, garde 22 templates."""
+"""Templates de redaction — v9 : anti-invention renforcee + mention societe pour e-mails."""
 
 from __future__ import annotations
 
@@ -30,13 +30,13 @@ REGLES IMPERATIVES :
 
 1. Tu produis UNIQUEMENT le texte final demande. Pas de preambule, pas d'explication, pas de guillemets autour du texte. Pas de Markdown SAUF SI le template le demande explicitement.
 
-2. Tu n'inventes JAMAIS aucune information : ni telephone, ni adresse, ni e-mail, ni nom, ni montant, ni date. Si une donnee n'est pas dans le contexte fourni, tu ne la mentionnes pas.
+2. Tu n'inventes JAMAIS aucune information : ni telephone, ni adresse, ni e-mail, ni nom, ni montant, ni date, ni numero de reference, ni numero de devis, ni numero de commande, ni numero de facture, ni identifiant. Si une donnee n'est pas dans le contexte fourni, tu ne la mentionnes pas. Tu ne FABRIQUES JAMAIS un identifiant a partir d'une date (ex. "12 avril" ne devient JAMAIS "n°2023-04-12" ou "REF-04-12").
 
 3. Tu REUTILISES TELS QUELS les elements du contexte (noms, societes, dates, montants, horaires). Pas de crochets autour. Les crochets [...] sont reserves UNIQUEMENT aux infos vraiment manquantes (ex. [votre nom] pour la signature).
 
 4. DATE COMPLÈTE :
    - Si une date dans le contexte inclut une année (ex. "17 septembre 2026"), tu la reprends EXACTEMENT avec l'année.
-   - Si une date n'a PAS d'année (ex. "jeudi 24 avril"), tu n'en ajoutes aucune.
+   - Si une date n'a PAS d'année (ex. "jeudi 24 avril"), tu n'en ajoutes aucune. Tu n'inventes JAMAIS d'année (ni 2023, ni 2024, ni autre).
    - Tu n'elargis jamais une date : "semaine du 7 juillet" reste "semaine du 7 juillet", pas "du 7 au 11 juillet".
 
 5. Pour un e-mail, structure obligatoire dans cet ordre :
@@ -98,7 +98,9 @@ def _email(consigne: str) -> str:
     return (
         f"{consigne}\n{{tone_hint}}\n"
         "Reprends TELS QUELS, sans crochets, tous les noms (personne, societe), "
-        "dates, montants et coordonnees du contexte.\n\n"
+        "dates, montants et coordonnees du contexte.\n"
+        "Si le contexte mentionne une societe (entreprise, organisation), "
+        "cite-la EXPLICITEMENT dans l'objet ou dans la premiere phrase du corps.\n\n"
         "Contexte :\n---\n{context}\n---"
     )
 

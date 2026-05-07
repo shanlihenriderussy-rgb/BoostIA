@@ -1,27 +1,68 @@
 # -*- mode: python ; coding: utf-8 -*-
+# Spec PyInstaller pour BoostIA - .exe autonome Windows.
 
 block_cipher = None
 
 a = Analysis(
-    ['app/main.py'],
-    pathex=[],
+    ['app/launcher.py'],
+    pathex=['.'],
     binaries=[],
     datas=[
         ('web', 'web'),
+        ('app', 'app'),
     ],
     hiddenimports=[
-        'httpx',
+        # Core
+        'uvicorn',
+        'uvicorn.logging',
+        'uvicorn.loops',
+        'uvicorn.loops.auto',
+        'uvicorn.protocols',
+        'uvicorn.protocols.http',
+        'uvicorn.protocols.http.auto',
+        'uvicorn.protocols.websockets',
+        'uvicorn.protocols.websockets.auto',
+        'uvicorn.lifespan',
+        'uvicorn.lifespan.on',
+        # FastAPI / Starlette / pydantic
+        'fastapi',
+        'starlette',
         'pydantic',
         'pydantic_settings',
+        'pydantic.deprecated.decorator',
+        # HTTP client
+        'httpx',
+        'httpcore',
+        'h11',
+        'anyio',
+        'sniffio',
+        # Logging
         'structlog',
+        # Modules app
+        'app',
+        'app.main',
+        'app.config',
+        'app.history',
+        'app.llm_client',
+        'app.logging_config',
+        'app.templates',
+        'app.templates_v5',
+        # SQLite (history)
+        'sqlite3',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        'tkinter',
+        'matplotlib',
+        'numpy',
+        'pandas',
+        'pytest',
+    ],
     win_no_prefer_redistribution=False,
     win_private_assemblies=False,
-    cipher=block_crypt,
+    cipher=block_cipher,
     noarchive=False,
 )
 
