@@ -164,6 +164,14 @@ header {
 
 .header-actions { display: flex; align-items: center; gap: var(--space-8); }
 
+/* Wrapper select : clip la flèche native iOS (overflow: hidden) */
+.model-select-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
 /* Selecteur modele : pill Apple — robuste (min-width, ellipsis, no negative tracking) */
 .model-info {
   font-size: 12px;
@@ -603,7 +611,7 @@ header {
 }
 
 @media (max-width: 880px) {
-  .hero { padding: var(--space-48) var(--space-20) var(--space-32); }
+  .hero { padding: var(--space-48) var(--space-20) var(--space-32); min-height: calc(85vh - 52px); }
   .atelier-header { padding: var(--space-48) var(--space-20) var(--space-24); }
   .hero-scroll-hint { display: none; }
 }
@@ -637,6 +645,8 @@ main {
   main { grid-template-columns: 1fr; margin: 0 auto var(--space-32); padding: 0 var(--space-20); gap: var(--space-20); }
   header { padding: 0 var(--space-20); }
   .tagline { display: none; }
+  .hero-sub { max-width: 100%; }
+  .atelier-sub { font-size: 17px; }
 }
 
 /* Cards : 28px radius, ZERO shadow, #fff sur canvas #f5f5f7 */
@@ -1102,4 +1112,97 @@ footer {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* =============================================================
+   RESPONSIVE — placé APRÈS toutes les définitions de base
+   ============================================================= */
+
+/* 880px — tablet: single column, cards compacts */
+@media (max-width: 880px) {
+  .card { padding: var(--space-24); }
+  .result { padding: var(--space-20) var(--space-24); }
+  .result.rendered h1 { font-size: 24px; }
+}
+
+/* 640px — compact: ghost buttons icon-only, touch targets 44px */
+@media (max-width: 640px) {
+  .ghost-button span { display: none; }
+  .ghost-button { padding: var(--space-8) var(--space-12); gap: 0; min-height: 44px; min-width: 44px; justify-content: center; }
+  .ghost-button svg { width: 16px; height: 16px; }
+  .toolbar-group { gap: var(--space-4); }
+  .output-toolbar { gap: var(--space-12); }
+  .model-info { min-width: 110px; max-width: 140px; }
+}
+
+/* 480px — mobile: iPhone 14 (390×844) et iPhone 14 Pro Max (430×932) */
+@media (max-width: 480px) {
+  /* Header */
+  header { padding: 0 var(--space-12); height: 48px; }
+  .brand h1 { font-size: 15px; }
+  .icon-button { width: 44px; height: 44px; }
+
+  /* Model picker — nuke total des flèches custom + native iOS Safari */
+  .model-info,
+  [data-theme="dark"] .model-info {
+    min-width: 100px;
+    max-width: 130px;
+    font-size: 11px;
+    padding: 6px 10px !important;
+    background-image: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-color: transparent !important;
+  }
+
+  /* Layout */
+  main { padding: 0 var(--space-12); gap: var(--space-16); }
+  .atelier-header { padding: var(--space-32) var(--space-12) var(--space-16); }
+  .atelier-title { font-size: clamp(26px, 7vw, 40px); }
+  .atelier-sub { font-size: 15px; }
+
+  /* Cards */
+  .card { padding: var(--space-16); border-radius: 20px; }
+  .field { margin-bottom: var(--space-16); }
+
+  /* Inputs — 16px minimum pour éviter le zoom auto iOS au focus */
+  select, textarea { font-size: 16px; }
+  textarea { min-height: 140px; }
+  .shortcut-hint { display: none; }
+
+  /* Touch targets Apple HIG 44px */
+  .tone-chip { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .primary-button { min-height: 48px; font-size: 16px; }
+
+  /* Hero */
+  .hero { min-height: 70vh; padding: var(--space-32) var(--space-16) var(--space-24); }
+  .hero-eyebrow { font-size: 17px; margin-bottom: var(--space-12); }
+  .hero-cta { font-size: 15px; padding: var(--space-12) var(--space-20); min-height: 44px; }
+
+  /* Hero H1 : gradient text supprimé sur mobile → couleur solide, toujours lisible */
+  .hero-headline {
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: var(--ink);
+    color: var(--ink);
+  }
+
+  /* Orb : descendue sous le texte hero pour éviter le chevauchement */
+  .orb-stage { top: 62vh; }
+
+  /* Result */
+  .result { padding: var(--space-16); min-height: 160px; font-size: 15px; }
+  .result.rendered h1 { font-size: 20px; }
+
+  /* Toolbar */
+  .output-toolbar { padding-top: var(--space-12); margin-top: var(--space-12); gap: var(--space-8); }
+
+  /* Footer */
+  footer { padding: var(--space-24) var(--space-16); margin-top: var(--space-24); }
+}
+
+/* Dark mode mobile : orb encore plus discrète pour ne pas concurrencer le texte */
+@media (max-width: 480px) {
+  [data-theme="dark"] .orb-stage { opacity: 0.12; }
 }
