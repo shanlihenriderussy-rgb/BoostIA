@@ -1,8 +1,22 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python -c \"from app.mcp_server import server, list_boostia_tools; import asyncio; tools = asyncio.run\\(list_boostia_tools\\(\\)\\); print\\(f'Tools: {len\\(tools\\)}'\\); [print\\(f'- {t.name}: {t.description[:80]}'\\) for t in tools]\")",
+      "Bash(python -c \"from app.mcp_server import handle_list_templates; r = handle_list_templates\\(\\); print\\(r[0].text[:600]\\)\")",
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(curl -s http://localhost:11434/api/tags)",
+      "Bash(python -c \"import sys, json; data = json.load\\(sys.stdin\\); print\\('Modèles installés:'\\); [print\\(f'  - {m[\\\\\"name\\\\\"]}'\\) for m in data.get\\('models', []\\)]\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  },
   "mcpServers": {
     "boostia": {
       "command": "python",
-      "args": ["run_mcp.py"],
+      "args": [
+        "run_mcp.py"
+      ],
       "description": "BoostIA - Assistant de rédaction professionnelle 100% local"
     }
   }
