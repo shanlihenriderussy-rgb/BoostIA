@@ -240,42 +240,32 @@
         return;
       }
 
-      // Groupe : recommandés d'abord, puis autres
+      // Trie : recommandes en premier (deja le cas cote API), avec etoile en prefixe.
+      // On evite les <optgroup> : sur certaines combinaisons Windows + select stylise,
+      // ils provoquent un bug de rendu (chevron natif duplique sur le label).
       const recommended = available.filter((m) => m.recommended);
       const others = available.filter((m) => !m.recommended);
+      const ordered = [...recommended, ...others];
 
-      const appendOption = (m) => {
+      for (let i = 0; i < ordered.length; i++) {
+        const m = ordered[i];
+        // Separateur visuel entre recommandes et autres (si les deux groupes existent)
+        if (
+          i === recommended.length &&
+          recommended.length > 0 &&
+          others.length > 0
+        ) {
+          const sep = document.createElement("option");
+          sep.disabled = true;
+          sep.textContent = "----------";
+          modelPicker.appendChild(sep);
+        }
         const opt = document.createElement("option");
         opt.value = m.id;
-        const star = m.recommended ? "★ " : "";
-        opt.textContent = `${star}${m.label}`;
+        const prefix = m.recommended ? "★ " : "";
+        opt.textContent = `${prefix}${m.label}`;
         opt.title = m.description || m.id;
         modelPicker.appendChild(opt);
-      };
-
-      if (recommended.length > 0) {
-        const grpReco = document.createElement("optgroup");
-        grpReco.label = "Recommandés";
-        modelPicker.appendChild(grpReco);
-        for (const m of recommended) {
-          const opt = document.createElement("option");
-          opt.value = m.id;
-          opt.textContent = `★ ${m.label}`;
-          opt.title = m.description || m.id;
-          grpReco.appendChild(opt);
-        }
-      }
-      if (others.length > 0) {
-        const grpOther = document.createElement("optgroup");
-        grpOther.label = "Autres modèles installés";
-        modelPicker.appendChild(grpOther);
-        for (const m of others) {
-          const opt = document.createElement("option");
-          opt.value = m.id;
-          opt.textContent = m.label;
-          opt.title = m.description || m.id;
-          grpOther.appendChild(opt);
-        }
       }
 
       const ids = available.map((m) => m.id);

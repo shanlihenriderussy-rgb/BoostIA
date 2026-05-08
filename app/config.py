@@ -47,20 +47,20 @@ RECOMMENDED_MODELS: list[dict[str, object]] = [
     {
         "id": "phi4:latest",
         "label": "Phi 4",
-        "description": "Recommande — meilleure qualite FR, ~50-60s sur petite VRAM",
+        "description": "Recommande - meilleure qualite FR, ~50-60s sur petite VRAM",
         "recommended": True,
         "is_default": True,
     },
     {
         "id": "qwen2.5:7b-instruct",
-        "label": "Qwen 2.5 — 7B Instruct",
+        "label": "Qwen 2.5 7B",
         "description": "Bon equilibre qualite/vitesse (~15-25s par e-mail)",
         "recommended": True,
         "is_default": False,
     },
     {
         "id": "qwen2.5:3b-instruct",
-        "label": "Qwen 2.5 — 3B Instruct",
+        "label": "Qwen 2.5 3B",
         "description": "Tres rapide (~5s) mais qualite FR limitee",
         "recommended": False,
         "is_default": False,
