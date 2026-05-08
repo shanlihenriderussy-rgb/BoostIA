@@ -695,7 +695,7 @@ select, textarea {
 
 [data-theme="dark"] select,
 [data-theme="dark"] textarea {
-  background: var(--recessed);
+  background-color: var(--recessed);
   border-color: var(--border-strong);
 }
 
@@ -1142,17 +1142,20 @@ footer {
   .brand h1 { font-size: 15px; }
   .icon-button { width: 44px; height: 44px; }
 
-  /* Model picker — nuke total des flèches custom + native iOS Safari */
+  /* Model picker mobile : chevron custom plus petit, JAMAIS background-image: none
+     (sur Chrome Windows, appearance: none + background-image: none affiche des
+     artefacts du chevron natif a la place, ce qui casse le rendu du label). */
   .model-info,
   [data-theme="dark"] .model-info {
     min-width: 100px;
-    max-width: 130px;
+    max-width: 140px;
     font-size: 11px;
-    padding: 6px 10px !important;
-    background-image: none !important;
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    background-color: transparent !important;
+    padding: 6px 26px 6px 10px;
+    background-position: right 8px center;
+    background-size: 9px 9px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: transparent;
   }
 
   /* Layout */
