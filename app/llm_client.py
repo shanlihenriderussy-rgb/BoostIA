@@ -100,3 +100,38 @@ class OllamaClient:
                             yield content
         except httpx.HTTPError as exc:
             raise OllamaError(f"Erreur reseau Ollama : {exc}") from exc
+
+    async def list_installed_models(self) -> list[dict]:
+        """Liste les modeles deja telecharges dans Ollama.
+
+        Appelle GET /api/tags. Retourne une liste de dicts avec au minimum:
+        - name: identifiant complet du modele (ex. "phi4:latest")
+        - size: taille en octets
+        - modified_at: timestamp ISO
+
+        Returns:
+            Liste de modeles installes (vide si Ollama indisponible).
+        """
+        url = f"{self.base_url}/api/tags"
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(5.0)) as client:
+                response = await client.get(url)
+                if response.status_code >= 400:
+                    logger.warning("ollama_tags_http_error", status=response.status_code)
+                    return []
+                payload = response.json()
+                models = payload.get("models", [])
+                if not isinstance(models, list):
+                    return []
+                return [
+                    {
+                        "name": m.get("name", ""),
+                        "size": m.get("size", 0),
+                        "modified_at": m.get("modified_at", ""),
+                    }
+                    for m in models
+                    if m.get("name")
+                ]
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("ollama_tags_unreachable", error=str(exc))
+            return []

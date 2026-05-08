@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app.config import AVAILABLE_MODELS, settings
+from app.config import AVAILABLE_MODELS, RECOMMENDED_MODELS, find_recommendation, settings
 from app.history import HistoryDB
 from app.llm_client import OllamaClient, OllamaError
 from app.logging_config import configure_logging
@@ -87,8 +87,17 @@ def _verify_api_key(authorization: str | None = Header(default=None)) -> None:
         raise HTTPException(status_code=403, detail="API key invalide")
 
 
-def _allowed_model_ids() -> set[str]:
-    return {m["id"] for m in AVAILABLE_MODELS}
+_MODEL_ID_RE = __import__("re").compile(r"^[A-Za-z0-9._\-:/]+$")
+
+
+def _is_valid_model_id(model_id: str) -> bool:
+    """Valide le format du nom de modele Ollama (ex. 'phi4:latest', 'qwen2.5:7b').
+
+    On n'impose plus de liste blanche cote serveur : tout modele installe
+    dans Ollama est utilisable. Ollama renverra une erreur claire si le
+    modele n'est pas present, et l'UI ne propose que les modeles installes.
+    """
+    return bool(model_id) and len(model_id) <= 200 and bool(_MODEL_ID_RE.match(model_id))
 
 
 # --- Modeles d'entree --------------------------------------------------------
@@ -128,7 +137,76 @@ async def templates_endpoint() -> list[dict[str, str]]:
 
 @app.get("/api/models")
 async def models_endpoint() -> dict:
-    return {"default": settings.model_name, "available": AVAILABLE_MODELS}
+    """Liste les modeles utilisables.
+
+    Strategie :
+    1. Interroge Ollama pour les modeles deja telecharges (`ollama list`).
+    2. Enrichit chaque modele installe avec les metadata du catalogue
+       RECOMMENDED_MODELS (label lisible, description, flag recommended).
+    3. Si Ollama est injoignable, fallback sur le catalogue (mode degrade).
+    4. Choisit un modele par defaut sense :
+       - Si le modele config par defaut est installe, on le garde.
+       - Sinon, premier modele recommande installe.
+       - Sinon, premier modele installe.
+    """
+    installed = await llm.list_installed_models()
+    ollama_available = bool(installed)
+
+    available: list[dict[str, object]] = []
+
+    if ollama_available:
+        for inst in installed:
+            name = inst["name"]
+            reco = find_recommendation(name)
+            available.append(
+                {
+                    "id": name,
+                    "label": reco["label"] if reco else name,
+                    "description": reco["description"] if reco else "Modele installe localement",
+                    "recommended": bool(reco["recommended"]) if reco else False,
+                    "installed": True,
+                    "size": inst.get("size", 0),
+                }
+            )
+        # Trie : recommandes d'abord, puis ordre alpha
+        available.sort(key=lambda m: (not m["recommended"], str(m["id"]).lower()))
+    else:
+        # Fallback : catalogue statique sans flag installed
+        for m in RECOMMENDED_MODELS:
+            available.append(
+                {
+                    "id": m["id"],
+                    "label": m["label"],
+                    "description": m["description"],
+                    "recommended": m["recommended"],
+                    "installed": False,
+                    "size": 0,
+                }
+            )
+
+    # Choix du default
+    installed_ids = [m["id"] for m in available if m["installed"]]
+    default_id: str = ""
+    if settings.model_name in installed_ids:
+        default_id = settings.model_name
+    else:
+        # Premier recommande installe
+        for m in available:
+            if m["recommended"] and m["installed"]:
+                default_id = str(m["id"])
+                break
+        # Sinon premier installe
+        if not default_id and installed_ids:
+            default_id = installed_ids[0]
+        # Sinon (Ollama down) premier du catalogue
+        if not default_id and available:
+            default_id = str(available[0]["id"])
+
+    return {
+        "default": default_id,
+        "available": available,
+        "ollama_available": ollama_available,
+    }
 
 
 @app.get("/api/history")
@@ -168,8 +246,8 @@ async def generate(
 
     chosen_model: str | None = None
     if req.model:
-        if req.model not in _allowed_model_ids():
-            raise HTTPException(status_code=400, detail=f"Modele non autorise : {req.model!r}")
+        if not _is_valid_model_id(req.model):
+            raise HTTPException(status_code=400, detail=f"Nom de modele invalide : {req.model!r}")
         chosen_model = req.model
 
     request_id = uuid.uuid4().hex[:12]
@@ -266,8 +344,8 @@ async def refine(
 
     chosen_model: str | None = None
     if req.model:
-        if req.model not in _allowed_model_ids():
-            raise HTTPException(status_code=400, detail=f"Modele non autorise : {req.model!r}")
+        if not _is_valid_model_id(req.model):
+            raise HTTPException(status_code=400, detail=f"Nom de modele invalide : {req.model!r}")
         chosen_model = req.model
 
     consigne = _REFINE_INSTRUCTIONS.get(req.instruction, req.instruction)

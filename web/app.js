@@ -217,16 +217,69 @@
       const data = await res.json();
       const available = Array.isArray(data.available) ? data.available : [];
       const defaultId = data.default || (available[0] && available[0].id) || "";
+      const ollamaOk = data.ollama_available !== false;
+
       modelPicker.innerHTML = "";
-      for (const m of available) {
+      modelPicker.disabled = false;
+
+      if (available.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = ollamaOk
+          ? "Aucun modèle installé — lancez `ollama pull phi4`"
+          : "Ollama indisponible";
+        modelPicker.appendChild(opt);
+        modelPicker.disabled = true;
+        currentModel = null;
+        setStatus(
+          ollamaOk
+            ? "Aucun modèle Ollama détecté. Téléchargez-en un avec `ollama pull phi4`."
+            : "Ollama est injoignable. Vérifiez qu'il tourne sur localhost:11434.",
+          "error",
+        );
+        return;
+      }
+
+      // Groupe : recommandés d'abord, puis autres
+      const recommended = available.filter((m) => m.recommended);
+      const others = available.filter((m) => !m.recommended);
+
+      const appendOption = (m) => {
         const opt = document.createElement("option");
         opt.value = m.id;
-        opt.textContent = m.label;
+        const star = m.recommended ? "★ " : "";
+        opt.textContent = `${star}${m.label}`;
         opt.title = m.description || m.id;
         modelPicker.appendChild(opt);
+      };
+
+      if (recommended.length > 0) {
+        const grpReco = document.createElement("optgroup");
+        grpReco.label = "Recommandés";
+        modelPicker.appendChild(grpReco);
+        for (const m of recommended) {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          opt.textContent = `★ ${m.label}`;
+          opt.title = m.description || m.id;
+          grpReco.appendChild(opt);
+        }
       }
-      const saved = localStorage.getItem(MODEL_KEY);
+      if (others.length > 0) {
+        const grpOther = document.createElement("optgroup");
+        grpOther.label = "Autres modèles installés";
+        modelPicker.appendChild(grpOther);
+        for (const m of others) {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          opt.textContent = m.label;
+          opt.title = m.description || m.id;
+          grpOther.appendChild(opt);
+        }
+      }
+
       const ids = available.map((m) => m.id);
+      const saved = localStorage.getItem(MODEL_KEY);
       if (saved && ids.includes(saved)) currentModel = saved;
       else if (ids.includes(defaultId)) currentModel = defaultId;
       else if (ids.length > 0) currentModel = ids[0];
