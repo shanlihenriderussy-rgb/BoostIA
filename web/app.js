@@ -217,16 +217,59 @@
       const data = await res.json();
       const available = Array.isArray(data.available) ? data.available : [];
       const defaultId = data.default || (available[0] && available[0].id) || "";
+      const ollamaOk = data.ollama_available !== false;
+
       modelPicker.innerHTML = "";
-      for (const m of available) {
+      modelPicker.disabled = false;
+
+      if (available.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = ollamaOk
+          ? "Aucun modèle installé — lancez `ollama pull phi4`"
+          : "Ollama indisponible";
+        modelPicker.appendChild(opt);
+        modelPicker.disabled = true;
+        currentModel = null;
+        setStatus(
+          ollamaOk
+            ? "Aucun modèle Ollama détecté. Téléchargez-en un avec `ollama pull phi4`."
+            : "Ollama est injoignable. Vérifiez qu'il tourne sur localhost:11434.",
+          "error",
+        );
+        return;
+      }
+
+      // Trie : recommandes en premier (deja le cas cote API), avec etoile en prefixe.
+      // On evite les <optgroup> : sur certaines combinaisons Windows + select stylise,
+      // ils provoquent un bug de rendu (chevron natif duplique sur le label).
+      const recommended = available.filter((m) => m.recommended);
+      const others = available.filter((m) => !m.recommended);
+      const ordered = [...recommended, ...others];
+
+      for (let i = 0; i < ordered.length; i++) {
+        const m = ordered[i];
+        // Separateur visuel entre recommandes et autres (si les deux groupes existent)
+        if (
+          i === recommended.length &&
+          recommended.length > 0 &&
+          others.length > 0
+        ) {
+          const sep = document.createElement("option");
+          sep.disabled = true;
+          sep.textContent = "----------";
+          modelPicker.appendChild(sep);
+        }
         const opt = document.createElement("option");
         opt.value = m.id;
-        opt.textContent = m.label;
+        const prefix = m.recommended ? "★ " : "";
+        opt.textContent = `${prefix}${m.label}`;
         opt.title = m.description || m.id;
         modelPicker.appendChild(opt);
       }
-      const saved = localStorage.getItem(MODEL_KEY);
+
       const ids = available.map((m) => m.id);
+      const saved = localStorage.getItem(MODEL_KEY);
       if (saved && ids.includes(saved)) currentModel = saved;
       else if (ids.includes(defaultId)) currentModel = defaultId;
       else if (ids.length > 0) currentModel = ids[0];

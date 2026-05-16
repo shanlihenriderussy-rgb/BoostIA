@@ -35,22 +35,45 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-# Modeles selectionnables depuis le menu deroulant de l'UI.
-# Pour ajouter un modele : `ollama pull <id>` puis l'ajouter ici.
-AVAILABLE_MODELS: list[dict[str, str]] = [
+# Modeles RECOMMANDES par BoostIA.
+# Sert de base de connaissance pour enrichir l'UI :
+# - label/description plus lisibles que le nom brut Ollama
+# - flag `recommended` pour le badge "Recommande" dans le dropdown
+# - flag `is_default` pour pre-selectionner si le modele est present
+#
+# La liste reelle des modeles affiches dans l'UI vient de `/api/tags` (Ollama).
+# Ce catalogue ne sert QU'A enrichir/decorer ces modeles installes.
+RECOMMENDED_MODELS: list[dict[str, object]] = [
+    {
+        "id": "phi4:latest",
+        "label": "Phi 4",
+        "description": "Recommande - meilleure qualite FR, ~50-60s sur petite VRAM",
+        "recommended": True,
+        "is_default": True,
+    },
     {
         "id": "qwen2.5:7b-instruct",
-        "label": "Qwen 2.5 — 7B Instruct",
-        "description": "Recommande — bon equilibre qualite/vitesse (~15-25s par e-mail)",
+        "label": "Qwen 2.5 7B",
+        "description": "Bon equilibre qualite/vitesse (~15-25s par e-mail)",
+        "recommended": True,
+        "is_default": False,
     },
     {
         "id": "qwen2.5:3b-instruct",
-        "label": "Qwen 2.5 — 3B Instruct",
+        "label": "Qwen 2.5 3B",
         "description": "Tres rapide (~5s) mais qualite FR limitee",
-    },
-    {
-        "id": "phi4:latest",
-        "label": "Phi 4 — Latest",
-        "description": "Meilleure qualite mais lent sur petite VRAM (~50-60s)",
+        "recommended": False,
+        "is_default": False,
     },
 ]
+
+# Compatibilite retro : ancien import garde l'ID/label/description simple
+AVAILABLE_MODELS: list[dict[str, str]] = [
+    {"id": m["id"], "label": m["label"], "description": m["description"]}
+    for m in RECOMMENDED_MODELS
+]
+
+
+def find_recommendation(model_id: str) -> dict[str, object] | None:
+    """Cherche un modele dans le catalogue par son id (ex. 'phi4:latest')."""
+    return next((m for m in RECOMMENDED_MODELS if m["id"] == model_id), None)
