@@ -29,6 +29,14 @@ GITHUB_DESCRIPTION.txt
 *.log
 logs/
 
+# Build artifacts (PyInstaller)
+build/
+dist/
+
+# Claude Code per-session state
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
 # OS / IDE
 .DS_Store
 Thumbs.db
